@@ -46,6 +46,9 @@ export default function App() {
   useEffect(() => {
     const loadMessages = async () => {
       try {
+        if (!supabase) {
+          throw new Error('Supabase no está configurado o las credenciales son inválidas.');
+        }
         const { data, error } = await supabase
           .from('comments')
           .select('*')
@@ -106,6 +109,9 @@ export default function App() {
   // Crear comentario (Create)
   const handleAddMessage = async (newMessage) => {
     try {
+      if (!supabase) {
+        throw new Error('Supabase no está configurado.');
+      }
       const { error } = await supabase
         .from('comments')
         .insert([
@@ -130,6 +136,9 @@ export default function App() {
   // Eliminar comentario (Delete)
   const handleDeleteMessage = async (id) => {
     try {
+      if (!supabase) {
+        throw new Error('Supabase no está configurado.');
+      }
       const { error } = await supabase
         .from('comments')
         .delete()
@@ -148,6 +157,9 @@ export default function App() {
   // Actualizar comentario (Update)
   const handleUpdateMessage = async (id, updatedText) => {
     try {
+      if (!supabase) {
+        throw new Error('Supabase no está configurado.');
+      }
       const { error } = await supabase
         .from('comments')
         .update({ text: updatedText })
