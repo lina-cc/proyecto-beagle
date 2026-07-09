@@ -3,6 +3,7 @@ import Header from './components/Header';
 import Hero from './components/Hero';
 import About from './components/About';
 import Tips from './components/Tips';
+import Cazadores from './components/Cazadores';
 import Resources from './components/Resources';
 import Gallery from './components/Gallery';
 import Lightbox from './components/Lightbox';
@@ -93,6 +94,7 @@ export default function App() {
       <main>
         <Hero />
         <About />
+        <Cazadores />
         <Tips />
         <Resources />
         <Gallery images={IMAGES} onImageClick={handleOpenLightbox} />
