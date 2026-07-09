@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from './supabaseClient';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import About from './components/About';
@@ -37,9 +38,29 @@ const IMAGES = [
 ];
 
 export default function App() {
-  const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  const [messages, setMessages] = useState([]);
   const [lightbox, setLightbox] = useState({ isOpen: false, currentIndex: 0 });
   const [toasts, setToasts] = useState([]);
+
+  // Carga inicial de comentarios desde Supabase (Read) con Async/Await
+  useEffect(() => {
+    const loadMessages = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('comments')
+          .select('*')
+          .order('id', { ascending: false });
+
+        if (error) throw error;
+        setMessages(data || []);
+      } catch (err) {
+        console.warn('Fallo al conectar con Supabase, usando mensajes estáticos:', err.message);
+        // Fallback a los datos estáticos de respaldo
+        setMessages(INITIAL_MESSAGES);
+      }
+    };
+    loadMessages();
+  }, []);
 
   // Toast notifications trigger function
   const showToast = (message, type = 'success') => {
@@ -82,9 +103,68 @@ export default function App() {
     }));
   };
 
-  // Comments handler
-  const handleAddMessage = (newMessage) => {
-    setMessages((prev) => [newMessage, ...prev]);
+  // Crear comentario (Create)
+  const handleAddMessage = async (newMessage) => {
+    try {
+      const { error } = await supabase
+        .from('comments')
+        .insert([
+          {
+            id: newMessage.id,
+            name: newMessage.name,
+            date: newMessage.date,
+            text: newMessage.text
+          }
+        ]);
+
+      if (error) throw error;
+      setMessages((prev) => [newMessage, ...prev]);
+    } catch (err) {
+      console.error('Error al guardar comentario en Supabase:', err.message);
+      showToast('Error al persistir en la nube. Guardado temporalmente en local.', 'error');
+      // Guardado local de respaldo (memoria)
+      setMessages((prev) => [newMessage, ...prev]);
+    }
+  };
+
+  // Eliminar comentario (Delete)
+  const handleDeleteMessage = async (id) => {
+    try {
+      const { error } = await supabase
+        .from('comments')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      setMessages((prev) => prev.filter((msg) => msg.id !== id));
+      showToast('Comentario eliminado con éxito. 🐾', 'success');
+    } catch (err) {
+      console.error('Error al borrar comentario en Supabase:', err.message);
+      showToast('Error al eliminar en la nube. Borrado localmente.', 'error');
+      setMessages((prev) => prev.filter((msg) => msg.id !== id));
+    }
+  };
+
+  // Actualizar comentario (Update)
+  const handleUpdateMessage = async (id, updatedText) => {
+    try {
+      const { error } = await supabase
+        .from('comments')
+        .update({ text: updatedText })
+        .eq('id', id);
+
+      if (error) throw error;
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === id ? { ...msg, text: updatedText } : msg))
+      );
+      showToast('Comentario editado con éxito. ✏️', 'success');
+    } catch (err) {
+      console.error('Error al actualizar comentario en Supabase:', err.message);
+      showToast('Error al guardar cambios. Editado localmente.', 'error');
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === id ? { ...msg, text: updatedText } : msg))
+      );
+    }
   };
 
   return (
@@ -102,7 +182,11 @@ export default function App() {
         <section id="contacto" className="content-section">
           <h2>Contacto</h2>
           <ContactForm onAddMessage={handleAddMessage} onShowToast={showToast} />
-          <CommunityBoard messages={messages} />
+          <CommunityBoard 
+            messages={messages} 
+            onDeleteMessage={handleDeleteMessage}
+            onUpdateMessage={handleUpdateMessage}
+          />
         </section>
       </main>
 

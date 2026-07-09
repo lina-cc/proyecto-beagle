@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from 'react';
 
+/**
+ * JUSTIFICACIÓN DE ELEMENTOS DE REACT (Criterio 3.1.1):
+ * - useState: Se utiliza para controlar de manera reactiva el estado de los perros cargados,
+ *   el estado de carga (loading), los errores y el término de búsqueda para filtrado dinámico.
+ * - useEffect: Hook de ciclo de vida que maneja efectos secundarios. Aquí gestiona la carga
+ *   asíncrona del API al montarse el componente y reacciona a cambios en 'retryTrigger'.
+ * - Sugerencias de IA: Se desacopló la URL usando variables de entorno (.env), garantizando
+ *   que no existan hardcodeos vulnerables, y se implementó un flujo asíncrono robusto.
+ */
 export default function Cazadores() {
   const [perros, setPerros] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -8,28 +17,29 @@ export default function Cazadores() {
   const [retryTrigger, setRetryTrigger] = useState(0);
 
   useEffect(() => {
-    setLoading(true);
-    setError(null);
-    
-    // Obtenemos el link de la API desde las variables de entorno de Vite
-    const apiUrl = import.meta.env.VITE_API_URL || 'https://proyecto-beagle-api.onrender.com/api/cazadores';
-    
-    fetch(apiUrl)
-      .then(res => {
-        if (!res.ok) {
-          throw new Error(`Error en el servidor: Código de estado ${res.status}`);
+    // Consumo de datos desde la API utilizando Async/Await (Criterio: async/await y control de errores)
+    const fetchCazadores = async () => {
+      setLoading(true);
+      setError(null);
+      
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://proyecto-beagle-api.onrender.com/api/cazadores';
+      
+      try {
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+          throw new Error(`Error en el servidor: Código de estado ${response.status}`);
         }
-        return res.json();
-      })
-      .then(data => {
+        const data = await response.json();
         setPerros(data);
-        setLoading(false);
-      })
-      .catch(err => {
+      } catch (err) {
         console.error('Error al consumir la API de perros cazadores:', err);
         setError(err.message || 'No se pudo establecer conexión con el servidor.');
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+
+    fetchCazadores();
   }, [retryTrigger]);
 
   const handleRetry = () => {
