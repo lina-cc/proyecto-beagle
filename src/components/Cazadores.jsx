@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
  * JUSTIFICACIÓN DE ELEMENTOS DE REACT (Criterio 3.1.1):
  * - useState: Se utiliza para controlar de manera reactiva el estado de los perros cargados,
  *   el estado de carga (loading), los errores y el término de búsqueda para filtrado dinámico.
+ *   También maneja el perro seleccionado para abrir su modal de visualización de doble columna.
  * - useEffect: Hook de ciclo de vida que maneja efectos secundarios. Aquí gestiona la carga
  *   asíncrona del API al montarse el componente y reacciona a cambios en 'retryTrigger'.
  * - Sugerencias de IA: Se desacopló la URL usando variables de entorno (.env), garantizando
@@ -15,6 +16,7 @@ export default function Cazadores() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [retryTrigger, setRetryTrigger] = useState(0);
+  const [selectedPerro, setSelectedPerro] = useState(null);
 
   useEffect(() => {
     // Consumo de datos desde la API utilizando Async/Await (Criterio: async/await y control de errores)
@@ -58,7 +60,7 @@ export default function Cazadores() {
       <div className="section-header-container">
         <h2>Sabuesos y Cazadores</h2>
         <p className="section-subtitle">
-          Explora los parientes cercanos del Beagle y otros sabuesos icónicos de rastreo directamente desde nuestra API en la nube.
+          Explora los parientes cercanos del Beagle y otros sabuesos de rastreo. Haz clic en cualquier tarjeta para ver su perfil completo en gran tamaño.
         </p>
         <div className="status-badge-wrapper">
           {loading ? (
@@ -97,6 +99,39 @@ export default function Cazadores() {
         </div>
       </div>
 
+      {/* Detalle Dividido en la parte superior (Criterio: UI Premium interactiva) */}
+      {selectedPerro && (
+        <div className="cazador-detail-inline-panel fade-in-panel">
+          <button className="cazador-detail-inline-close" onClick={() => setSelectedPerro(null)} title="Cerrar detalles">
+            &times;
+          </button>
+          <div className="cazador-detail-inline-body">
+            <div className="cazador-detail-inline-left">
+              <img src={selectedPerro.imagen} alt={selectedPerro.nombre} className="cazador-detail-inline-img" />
+            </div>
+            <div className="cazador-detail-inline-right">
+              <span className="cazador-detail-inline-badge">{selectedPerro.tipo}</span>
+              <h2 className="cazador-detail-inline-title">{selectedPerro.nombre}</h2>
+              
+              <div className="cazador-detail-inline-field">
+                <strong>País de Origen</strong>
+                <p>{selectedPerro.origen}</p>
+              </div>
+              
+              <div className="cazador-detail-inline-field highlight">
+                <strong>Habilidad Clave</strong>
+                <p>{selectedPerro.habilidad_clave}</p>
+              </div>
+              
+              <div className="cazador-detail-inline-field">
+                <strong>Descripción de la Raza</strong>
+                <p className="cazador-detail-inline-desc-text">{selectedPerro.descripcion}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="cazadores-loading">
           <div className="spinner"></div>
@@ -130,7 +165,11 @@ export default function Cazadores() {
           ) : (
             <div className="cazadores-grid">
               {filteredPerros.map((perro) => (
-                <div key={perro.id} className="cazador-card">
+                <div key={perro.id} className="cazador-card" onClick={() => {
+                  setSelectedPerro(perro);
+                  // Hacer scroll suave hacia arriba para ver el panel de detalles con comodidad
+                  document.getElementById('cazadores').scrollIntoView({ behavior: 'smooth' });
+                }} style={{ cursor: 'pointer' }}>
                   <div className="cazador-card-img-wrapper">
                     <img src={perro.imagen} alt={perro.nombre} className="cazador-card-img" loading="lazy" />
                     <span className="cazador-type-badge">{perro.tipo}</span>

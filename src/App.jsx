@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from './supabaseClient';
+import React, { useState } from 'react';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import About from './components/About';
@@ -8,25 +7,9 @@ import Cazadores from './components/Cazadores';
 import Resources from './components/Resources';
 import Gallery from './components/Gallery';
 import Lightbox from './components/Lightbox';
-import ContactForm from './components/ContactForm';
-import CommunityBoard from './components/CommunityBoard';
+import MascotasPanel from './components/MascotasPanel';
 import ToastContainer from './components/ToastContainer';
 import Footer from './components/Footer';
-
-const INITIAL_MESSAGES = [
-  {
-    id: 1,
-    name: "Carlos Mendoza",
-    date: "21/06/2026",
-    text: "¡Mi Beagle Toby es tremendo! Se robó unos calcetines ayer pero es tan cariñoso que no me puedo enojar con él. Saludos a todos en la comunidad."
-  },
-  {
-    id: 2,
-    name: "Andrea Riquelme",
-    date: "20/06/2026",
-    text: "Recomiendo mucho limpiarles las orejas seguido. Cooper sufría de otitis hasta que empezamos a limpiárselas cada semana como aconsejan los tips de salud."
-  }
-];
 
 const IMAGES = [
   { src: "img/2.jpg", alt: "Beagle jugando al aire libre", caption: "Feliz en el parque" },
@@ -38,32 +21,9 @@ const IMAGES = [
 ];
 
 export default function App() {
-  const [messages, setMessages] = useState([]);
+  const [currentTab, setCurrentTab] = useState('inicio');
   const [lightbox, setLightbox] = useState({ isOpen: false, currentIndex: 0 });
   const [toasts, setToasts] = useState([]);
-
-  // Carga inicial de comentarios desde Supabase (Read) con Async/Await
-  useEffect(() => {
-    const loadMessages = async () => {
-      try {
-        if (!supabase) {
-          throw new Error('Supabase no está configurado o las credenciales son inválidas.');
-        }
-        const { data, error } = await supabase
-          .from('comments')
-          .select('*')
-          .order('id', { ascending: false });
-
-        if (error) throw error;
-        setMessages(data || []);
-      } catch (err) {
-        console.warn('Fallo al conectar con Supabase, usando mensajes estáticos:', err.message);
-        // Fallback a los datos estáticos de respaldo
-        setMessages(INITIAL_MESSAGES);
-      }
-    };
-    loadMessages();
-  }, []);
 
   // Toast notifications trigger function
   const showToast = (message, type = 'success') => {
@@ -106,100 +66,74 @@ export default function App() {
     }));
   };
 
-  // Crear comentario (Create)
-  const handleAddMessage = async (newMessage) => {
-    try {
-      if (!supabase) {
-        throw new Error('Supabase no está configurado.');
-      }
-      const { error } = await supabase
-        .from('comments')
-        .insert([
-          {
-            id: newMessage.id,
-            name: newMessage.name,
-            date: newMessage.date,
-            text: newMessage.text
-          }
-        ]);
-
-      if (error) throw error;
-      setMessages((prev) => [newMessage, ...prev]);
-    } catch (err) {
-      console.error('Error al guardar comentario en Supabase:', err.message);
-      showToast('Error al persistir en la nube. Guardado temporalmente en local.', 'error');
-      // Guardado local de respaldo (memoria)
-      setMessages((prev) => [newMessage, ...prev]);
-    }
-  };
-
-  // Eliminar comentario (Delete)
-  const handleDeleteMessage = async (id) => {
-    try {
-      if (!supabase) {
-        throw new Error('Supabase no está configurado.');
-      }
-      const { error } = await supabase
-        .from('comments')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      setMessages((prev) => prev.filter((msg) => msg.id !== id));
-      showToast('Comentario eliminado con éxito. 🐾', 'success');
-    } catch (err) {
-      console.error('Error al borrar comentario en Supabase:', err.message);
-      showToast('Error al eliminar en la nube. Borrado localmente.', 'error');
-      setMessages((prev) => prev.filter((msg) => msg.id !== id));
-    }
-  };
-
-  // Actualizar comentario (Update)
-  const handleUpdateMessage = async (id, updatedText) => {
-    try {
-      if (!supabase) {
-        throw new Error('Supabase no está configurado.');
-      }
-      const { error } = await supabase
-        .from('comments')
-        .update({ text: updatedText })
-        .eq('id', id);
-
-      if (error) throw error;
-      setMessages((prev) =>
-        prev.map((msg) => (msg.id === id ? { ...msg, text: updatedText } : msg))
-      );
-      showToast('Comentario editado con éxito. ✏️', 'success');
-    } catch (err) {
-      console.error('Error al actualizar comentario en Supabase:', err.message);
-      showToast('Error al guardar cambios. Editado localmente.', 'error');
-      setMessages((prev) =>
-        prev.map((msg) => (msg.id === id ? { ...msg, text: updatedText } : msg))
-      );
-    }
-  };
-
   return (
     <>
-      <Header />
+      <Header currentTab={currentTab} setCurrentTab={setCurrentTab} />
       
       <main>
-        <Hero />
-        <About />
-        <Cazadores />
-        <Tips />
-        <Resources />
-        <Gallery images={IMAGES} onImageClick={handleOpenLightbox} />
-        
-        <section id="contacto" className="content-section">
-          <h2>Contacto</h2>
-          <ContactForm onAddMessage={handleAddMessage} onShowToast={showToast} />
-          <CommunityBoard 
-            messages={messages} 
-            onDeleteMessage={handleDeleteMessage}
-            onUpdateMessage={handleUpdateMessage}
-          />
-        </section>
+        {currentTab === 'inicio' && (
+          <div className="fade-in">
+            <Hero />
+            
+            <section className="content-section dashboard-intro">
+              <h2>Comunidad Beagle & Sabuesos 🐾</h2>
+              <p className="dashboard-lead">
+                Bienvenido al rincón oficial para entusiastas de los Beagles y los mejores perros de rastro del mundo. 
+                Navega a través de nuestras pestañas superiores para descubrir datos educativos, explorar razas cazadoras 
+                conectadas a nuestra API en tiempo real o administrar tus propias mascotas.
+              </p>
+              
+              <div className="features-dashboard-grid">
+                <div className="feature-card-dash" onClick={() => setCurrentTab('sobre')}>
+                  <div className="dash-icon-circle">📖</div>
+                  <h3>Guía del Beagle</h3>
+                  <p>Descubre el origen, comportamiento y los mejores consejos de alimentación y salud para tu compañero.</p>
+                  <span className="dash-card-link">Leer guía →</span>
+                </div>
+                
+                <div className="feature-card-dash" onClick={() => setCurrentTab('cazadores')}>
+                  <div className="dash-icon-circle">🐕</div>
+                  <h3>Razas Sabuesas</h3>
+                  <p>Explora un listado interactivo de razas de sabueso recuperado dinámicamente desde nuestra API en la nube.</p>
+                  <span className="dash-card-link">Ver catálogo →</span>
+                </div>
+                
+                <div className="feature-card-dash" onClick={() => setCurrentTab('mascotas')}>
+                  <div className="dash-icon-circle">🩺</div>
+                  <h3>Expediente Canino</h3>
+                  <p>Lleva un registro clínico completo de tus perros. Registra vacunas, desparasitaciones y consultas médicas.</p>
+                  <span className="dash-card-link">Administrar mascotas →</span>
+                </div>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {currentTab === 'sobre' && (
+          <div className="fade-in">
+            <About />
+            <Tips />
+          </div>
+        )}
+
+        {currentTab === 'cazadores' && (
+          <div className="fade-in">
+            <Cazadores />
+          </div>
+        )}
+
+        {currentTab === 'recursos' && (
+          <div className="fade-in">
+            <Resources />
+            <Gallery images={IMAGES} onImageClick={handleOpenLightbox} />
+          </div>
+        )}
+
+        {currentTab === 'mascotas' && (
+          <div className="fade-in">
+            <MascotasPanel />
+          </div>
+        )}
       </main>
 
       <Footer />
