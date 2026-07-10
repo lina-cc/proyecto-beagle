@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * JUSTIFICACIÓN DE ELEMENTOS DE REACT (Criterio 3.1.1):
@@ -9,6 +10,9 @@ import React, { useState, useEffect } from 'react';
  *   asíncrona del API al montarse el componente y reacciona a cambios en 'retryTrigger'.
  * - Sugerencias de IA: Se desacopló la URL usando variables de entorno (.env), garantizando
  *   que no existan hardcodeos vulnerables, y se implementó un flujo asíncrono robusto.
+ * - createPortal: Se utiliza para montar el modal de detalles directamente en document.body.
+ *   Esto evita interferencias de estilo (como el transform: translateY de animaciones) y
+ *   garantiza que el fondo oscuro y la tarjeta se posicionen de manera fija en el viewport.
  */
 export default function Cazadores() {
   const [perros, setPerros] = useState([]);
@@ -99,39 +103,6 @@ export default function Cazadores() {
         </div>
       </div>
 
-      {/* Detalle Dividido en la parte superior (Criterio: UI Premium interactiva) */}
-      {selectedPerro && (
-        <div className="cazador-detail-inline-panel fade-in-panel">
-          <button className="cazador-detail-inline-close" onClick={() => setSelectedPerro(null)} title="Cerrar detalles">
-            &times;
-          </button>
-          <div className="cazador-detail-inline-body">
-            <div className="cazador-detail-inline-left">
-              <img src={selectedPerro.imagen} alt={selectedPerro.nombre} className="cazador-detail-inline-img" />
-            </div>
-            <div className="cazador-detail-inline-right">
-              <span className="cazador-detail-inline-badge">{selectedPerro.tipo}</span>
-              <h2 className="cazador-detail-inline-title">{selectedPerro.nombre}</h2>
-              
-              <div className="cazador-detail-inline-field">
-                <strong>País de Origen</strong>
-                <p>{selectedPerro.origen}</p>
-              </div>
-              
-              <div className="cazador-detail-inline-field highlight">
-                <strong>Habilidad Clave</strong>
-                <p>{selectedPerro.habilidad_clave}</p>
-              </div>
-              
-              <div className="cazador-detail-inline-field">
-                <strong>Descripción de la Raza</strong>
-                <p className="cazador-detail-inline-desc-text">{selectedPerro.descripcion}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {loading ? (
         <div className="cazadores-loading">
           <div className="spinner"></div>
@@ -165,11 +136,7 @@ export default function Cazadores() {
           ) : (
             <div className="cazadores-grid">
               {filteredPerros.map((perro) => (
-                <div key={perro.id} className="cazador-card" onClick={() => {
-                  setSelectedPerro(perro);
-                  // Hacer scroll suave hacia arriba para ver el panel de detalles con comodidad
-                  document.getElementById('cazadores').scrollIntoView({ behavior: 'smooth' });
-                }} style={{ cursor: 'pointer' }}>
+                <div key={perro.id} className="cazador-card" onClick={() => setSelectedPerro(perro)} style={{ cursor: 'pointer' }}>
                   <div className="cazador-card-img-wrapper">
                     <img src={perro.imagen} alt={perro.nombre} className="cazador-card-img" loading="lazy" />
                     <span className="cazador-type-badge">{perro.tipo}</span>
@@ -191,6 +158,42 @@ export default function Cazadores() {
             </div>
           )}
         </>
+      )}
+
+      {/* Modal de Detalle con Portal (Evita el bug de posicionamiento fixed por transforms) */}
+      {selectedPerro && createPortal(
+        <div className="cazador-detail-modal-overlay" onClick={() => setSelectedPerro(null)}>
+          <div className="cazador-detail-modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="cazador-detail-modal-close" onClick={() => setSelectedPerro(null)} title="Cerrar modal">
+              &times;
+            </button>
+            <div className="cazador-detail-modal-body">
+              <div className="cazador-detail-modal-left">
+                <img src={selectedPerro.imagen} alt={selectedPerro.nombre} className="cazador-detail-modal-img" />
+              </div>
+              <div className="cazador-detail-modal-right">
+                <span className="cazador-detail-modal-badge">{selectedPerro.tipo}</span>
+                <h2 className="cazador-detail-modal-title">{selectedPerro.nombre}</h2>
+                
+                <div className="cazador-detail-modal-field">
+                  <strong>País de Origen</strong>
+                  <p>{selectedPerro.origen}</p>
+                </div>
+                
+                <div className="cazador-detail-modal-field highlight">
+                  <strong>Habilidad Clave</strong>
+                  <p>{selectedPerro.habilidad_clave}</p>
+                </div>
+                
+                <div className="cazador-detail-modal-field">
+                  <strong>Descripción de la Raza</strong>
+                  <p className="cazador-detail-modal-desc-text">{selectedPerro.descripcion}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </section>
   );
