@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from '../supabaseClient';
 
 // Mascotas iniciales por defecto para no mostrar una pantalla vacía
 const INITIAL_MASCOTAS = [
@@ -28,7 +29,7 @@ const INITIAL_MASCOTAS = [
   }
 ];
 
-export default function MascotasPanel() {
+export default function MascotasPanel({ onShowToast }) {
   // Carga inicial y persistencia en Local Storage (Criterio: CRUD Local Storage)
   const [mascotas, setMascotas] = useState(() => {
     const localData = localStorage.getItem('beagle_mascotas');
@@ -39,10 +40,97 @@ export default function MascotasPanel() {
     localStorage.setItem('beagle_mascotas', JSON.stringify(mascotas));
   }, [mascotas]);
 
-  // Estados de control de UI
+  // Estados de control de UI y sincronización
   const [selectedPetId, setSelectedPetId] = useState(null);
   const [isAddingPet, setIsAddingPet] = useState(false);
   const [editingPetId, setEditingPetId] = useState(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Sincronización bidireccional de mascotas con Supabase
+  const handleSyncPets = async () => {
+    if (!supabase) {
+      if (onShowToast) onShowToast("Supabase no está configurado en las variables de entorno.", "error");
+      return;
+    }
+
+    setIsSyncing(true);
+    if (onShowToast) onShowToast("Iniciando sincronización con la nube... ☁️", "success");
+
+    try {
+      // 1. Subir mascotas locales a Supabase (upsert)
+      const petsToUpsert = mascotas.map(pet => ({
+        id: pet.id,
+        nombre: pet.nombre,
+        raza: pet.raza,
+        edad: pet.edad,
+        sexo: pet.sexo,
+        foto: pet.foto,
+        records: pet.records || []
+      }));
+
+      if (petsToUpsert.length > 0) {
+        const { error: upsertError } = await supabase
+          .from('beagle_mascotas')
+          .upsert(petsToUpsert);
+
+        if (upsertError) throw upsertError;
+      }
+
+      // 2. Descargar mascotas desde Supabase
+      const { data: remotePets, error: fetchError } = await supabase
+        .from('beagle_mascotas')
+        .select('*');
+
+      if (fetchError) throw fetchError;
+
+      // 3. Combinar datos remotos con locales
+      const mergedMascotas = [...mascotas];
+
+      if (remotePets) {
+        remotePets.forEach(remotePet => {
+          const localIndex = mergedMascotas.findIndex(localPet => localPet.id === remotePet.id);
+          if (localIndex === -1) {
+            // Si no existe localmente, se añade
+            mergedMascotas.push({
+              id: remotePet.id,
+              nombre: remotePet.nombre,
+              raza: remotePet.raza,
+              edad: remotePet.edad,
+              sexo: remotePet.sexo,
+              foto: remotePet.foto,
+              records: remotePet.records || []
+            });
+          } else {
+            // Fusionamos los records sin duplicados por ID de registro
+            const localRecords = mergedMascotas[localIndex].records || [];
+            const remoteRecords = remotePet.records || [];
+            const mergedRecords = [...localRecords];
+
+            remoteRecords.forEach(remRec => {
+              const recExists = mergedRecords.some(locRec => locRec.id === remRec.id);
+              if (!recExists) {
+                mergedRecords.push(remRec);
+              }
+            });
+
+            // Reordenar registros clínicos por fecha descendente
+            mergedRecords.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+            mergedMascotas[localIndex].records = mergedRecords;
+          }
+        });
+      }
+
+      setMascotas(mergedMascotas);
+      if (onShowToast) onShowToast("¡Expedientes sincronizados con Supabase! ☁️🐾", "success");
+    } catch (err) {
+      console.error("Error en sincronización de mascotas:", err);
+      if (onShowToast) {
+         onShowToast(`Error de sincronización: ${err.message || 'Verifica si la tabla existe en Supabase.'}`, "error");
+      }
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Estados de los Formularios de Mascotas
   const [petForm, setPetForm] = useState({ nombre: '', raza: 'Beagle', edad: '', sexo: 'Macho', foto: '' });
@@ -344,14 +432,26 @@ export default function MascotasPanel() {
             <p className="section-subtitle">
               Registra tus sabuesos de casa, edita sus datos y mantén al día su expediente clínico completo.
             </p>
-            <button className="btn btn-primary add-pet-btn" onClick={() => {
-              setIsAddingPet(!isAddingPet);
-              setEditingPetId(null);
-              setPetForm({ nombre: '', raza: 'Beagle', edad: '', sexo: 'Macho', foto: '' });
-              setPetErrors({});
-            }}>
-              {isAddingPet ? 'Cancelar Registro' : '🐾 Registrar Nueva Mascota'}
-            </button>
+            <div className="mascotas-actions-bar" style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '1.5rem' }}>
+              <button className="btn btn-primary add-pet-btn" onClick={() => {
+                setIsAddingPet(!isAddingPet);
+                setEditingPetId(null);
+                setPetForm({ nombre: '', raza: 'Beagle', edad: '', sexo: 'Macho', foto: '' });
+                setPetErrors({});
+              }}>
+                {isAddingPet ? 'Cancelar Registro' : '🐾 Registrar Nueva Mascota'}
+              </button>
+              {supabase && (
+                <button 
+                  type="button"
+                  className="btn btn-secondary sync-pets-btn" 
+                  onClick={handleSyncPets}
+                  disabled={isSyncing}
+                >
+                  {isSyncing ? '🔄 Sincronizando...' : '☁️ Sincronizar con Supabase'}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Formulario de Registro de Mascota (Create / Update) */}

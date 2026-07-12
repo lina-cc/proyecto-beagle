@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import About from './components/About';
@@ -10,6 +10,9 @@ import Lightbox from './components/Lightbox';
 import MascotasPanel from './components/MascotasPanel';
 import ToastContainer from './components/ToastContainer';
 import Footer from './components/Footer';
+import ContactForm from './components/ContactForm';
+import CommunityBoard from './components/CommunityBoard';
+import { supabase } from './supabaseClient';
 
 const IMAGES = [
   { src: "img/2.jpg", alt: "Beagle jugando al aire libre", caption: "Feliz en el parque" },
@@ -24,6 +27,8 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState('inicio');
   const [lightbox, setLightbox] = useState({ isOpen: false, currentIndex: 0 });
   const [toasts, setToasts] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
 
   // Toast notifications trigger function
   const showToast = (message, type = 'success') => {
@@ -41,6 +46,126 @@ export default function App() {
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 4300);
+  };
+
+  // Fetch messages from Supabase or localStorage
+  useEffect(() => {
+    const loadMessages = async () => {
+      setLoadingMessages(true);
+      if (supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('beagle_messages')
+            .select('*')
+            .order('id', { ascending: false });
+          if (error) throw error;
+          setMessages(data || []);
+        } catch (err) {
+          console.warn('Error fetching messages from Supabase, falling back to localStorage:', err);
+          const localMsgs = localStorage.getItem('beagle_messages');
+          setMessages(localMsgs ? JSON.parse(localMsgs) : []);
+        }
+      } else {
+        const localMsgs = localStorage.getItem('beagle_messages');
+        setMessages(localMsgs ? JSON.parse(localMsgs) : []);
+      }
+      setLoadingMessages(false);
+    };
+
+    if (currentTab === 'tablon' || currentTab === 'inicio') {
+      loadMessages();
+    }
+  }, [currentTab]);
+
+  // Join community from Hero
+  const handleJoinCommunity = () => {
+    setCurrentTab('tablon');
+    setTimeout(() => {
+      const element = document.getElementById('contact-form');
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 100);
+  };
+
+  // CRUD handlers for community board
+  const handleAddMessage = async (newMessage) => {
+    if (supabase) {
+      try {
+        const { error } = await supabase
+          .from('beagle_messages')
+          .insert([{
+            id: newMessage.id,
+            name: newMessage.name,
+            date: newMessage.date,
+            text: newMessage.text
+          }]);
+        if (error) throw error;
+        setMessages((prev) => [newMessage, ...prev]);
+        showToast("¡Mensaje publicado en la nube! ☁️", "success");
+      } catch (err) {
+        console.error('Error insertando en Supabase, guardando local:', err);
+        const updated = [newMessage, ...messages];
+        setMessages(updated);
+        localStorage.setItem('beagle_messages', JSON.stringify(updated));
+        showToast("Error de nube. Mensaje guardado localmente.", "warning");
+      }
+    } else {
+      const updated = [newMessage, ...messages];
+      setMessages(updated);
+      localStorage.setItem('beagle_messages', JSON.stringify(updated));
+      showToast("Mensaje publicado localmente 🐾", "success");
+    }
+  };
+
+  const handleUpdateMessage = async (id, newText) => {
+    if (supabase) {
+      try {
+        const { error } = await supabase
+          .from('beagle_messages')
+          .update({ text: newText })
+          .eq('id', id);
+        if (error) throw error;
+        setMessages((prev) => prev.map((m) => m.id === id ? { ...m, text: newText } : m));
+        showToast("Mensaje editado en la nube ☁️", "success");
+      } catch (err) {
+        console.error('Error editando en Supabase:', err);
+        const updated = messages.map((m) => m.id === id ? { ...m, text: newText } : m);
+        setMessages(updated);
+        localStorage.setItem('beagle_messages', JSON.stringify(updated));
+        showToast("Mensaje editado localmente.", "warning");
+      }
+    } else {
+      const updated = messages.map((m) => m.id === id ? { ...m, text: newText } : m);
+      setMessages(updated);
+      localStorage.setItem('beagle_messages', JSON.stringify(updated));
+      showToast("Mensaje editado localmente 🐾", "success");
+    }
+  };
+
+  const handleDeleteMessage = async (id) => {
+    if (supabase) {
+      try {
+        const { error } = await supabase
+          .from('beagle_messages')
+          .delete()
+          .eq('id', id);
+        if (error) throw error;
+        setMessages((prev) => prev.filter((m) => m.id !== id));
+        showToast("Mensaje eliminado de la nube ☁️", "success");
+      } catch (err) {
+        console.error('Error eliminando de Supabase:', err);
+        const updated = messages.filter((m) => m.id !== id);
+        setMessages(updated);
+        localStorage.setItem('beagle_messages', JSON.stringify(updated));
+        showToast("Mensaje eliminado localmente.", "warning");
+      }
+    } else {
+      const updated = messages.filter((m) => m.id !== id);
+      setMessages(updated);
+      localStorage.setItem('beagle_messages', JSON.stringify(updated));
+      showToast("Mensaje eliminado localmente 🐾", "success");
+    }
   };
 
   // Lightbox controllers
@@ -73,7 +198,7 @@ export default function App() {
       <main>
         {currentTab === 'inicio' && (
           <div className="fade-in">
-            <Hero />
+            <Hero onJoinCommunity={handleJoinCommunity} />
             
             <section className="content-section dashboard-intro">
               <h2>Comunidad Beagle & Sabuesos 🐾</h2>
@@ -122,6 +247,39 @@ export default function App() {
           </div>
         )}
 
+        {currentTab === 'tablon' && (
+          <div className="fade-in">
+            <section className="content-section tablon-section">
+              <div className="section-header-container" style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                <h2>Tablón de la Comunidad 💬</h2>
+                <p className="section-subtitle">
+                  Deja un mensaje para saludar, compartir anécdotas de tus sabuesos o hacer consultas a otros dueños.
+                </p>
+                <div className="status-badge-wrapper" style={{ marginTop: '1rem', display: 'inline-block' }}>
+                  {supabase ? (
+                    <span className="status-badge live">
+                      <span className="pulse-dot"></span> Conectado a la Nube (Supabase)
+                    </span>
+                  ) : (
+                    <span className="status-badge local">
+                      <span className="static-dot" style={{ backgroundColor: '#7f8c8d' }}></span> Guardado Local (Offline)
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              <div className="tablon-content-wrapper">
+                <ContactForm onAddMessage={handleAddMessage} onShowToast={showToast} />
+                <CommunityBoard 
+                  messages={messages} 
+                  onDeleteMessage={handleDeleteMessage} 
+                  onUpdateMessage={handleUpdateMessage} 
+                />
+              </div>
+            </section>
+          </div>
+        )}
+
         {currentTab === 'recursos' && (
           <div className="fade-in">
             <Resources />
@@ -131,7 +289,7 @@ export default function App() {
 
         {currentTab === 'mascotas' && (
           <div className="fade-in">
-            <MascotasPanel />
+            <MascotasPanel onShowToast={showToast} />
           </div>
         )}
       </main>

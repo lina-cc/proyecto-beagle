@@ -21,6 +21,30 @@ export default function Cazadores() {
   const [searchTerm, setSearchTerm] = useState('');
   const [retryTrigger, setRetryTrigger] = useState(0);
   const [selectedPerro, setSelectedPerro] = useState(null);
+  const [loadingStage, setLoadingStage] = useState(0);
+
+  // Dynamic loading messages
+  const loadingMessages = [
+    "Olfateando el rastro del servidor... 🐾",
+    "El servidor gratuito está despertando del letargo... 💤 (Esto puede tomar hasta 30 segundos)",
+    "Rastreando la base de datos de los sabuesos... 🐕",
+    "Casi listo, trayendo las fotos y habilidades claves... 📸",
+    "¡Un segundo más! Los sabuesos corren rápido pero el servidor es gratuito... ⏱️"
+  ];
+
+  const currentLoadingMessage = loadingMessages[Math.min(loadingStage, loadingMessages.length - 1)];
+
+  // Change loading message stage every 5 seconds
+  useEffect(() => {
+    if (!loading) {
+      setLoadingStage(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setLoadingStage((prev) => prev + 1);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [loading]);
 
   useEffect(() => {
     // Consumo de datos desde la API utilizando Async/Await (Criterio: async/await y control de errores)
@@ -104,9 +128,36 @@ export default function Cazadores() {
       </div>
 
       {loading ? (
-        <div className="cazadores-loading">
-          <div className="spinner"></div>
-          <p>Cargando información de sabuesos...</p>
+        <div className="cazadores-loading-container fade-in">
+          <div className="cazadores-loading-status-box" style={{ textAlign: 'center', marginBottom: '2.5rem', padding: '1.5rem', backgroundColor: '#fdfaf6', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+            <div className="spinner" style={{ margin: '0 auto 1rem' }}></div>
+            <p className="loading-stage-text" style={{ fontSize: '1.1rem', fontWeight: '500', color: 'var(--primary-color)' }}>
+              {currentLoadingMessage}
+            </p>
+          </div>
+          
+          <div className="cazadores-grid skeleton-grid">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="cazador-card skeleton-card">
+                <div className="cazador-card-img-wrapper skeleton-image-wrapper">
+                  <div className="skeleton-image"></div>
+                  <div className="skeleton-badge"></div>
+                </div>
+                <div className="cazador-card-content">
+                  <div className="cazador-card-meta" style={{ marginBottom: '0.8rem' }}>
+                    <div className="skeleton-line skeleton-meta"></div>
+                  </div>
+                  <div className="skeleton-line skeleton-title" style={{ marginBottom: '1rem' }}></div>
+                  <div className="cazador-skill-box skeleton-skill-box" style={{ marginBottom: '1rem' }}>
+                    <div className="skeleton-line skeleton-skill-label" style={{ width: '40%', marginBottom: '0.4rem' }}></div>
+                    <div className="skeleton-line skeleton-skill-desc" style={{ width: '80%' }}></div>
+                  </div>
+                  <div className="skeleton-line skeleton-desc-line" style={{ marginBottom: '0.4rem' }}></div>
+                  <div className="skeleton-line skeleton-desc-line short"></div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ) : error ? (
         <div className="no-results-card" style={{ borderColor: '#f5b7b1' }}>

@@ -1,19 +1,12 @@
 import React from 'react';
 
-export default function Hero() {
-  const handleScrollToContact = () => {
-    const contactSection = document.getElementById('contacto');
-    if (contactSection) {
-      contactSection.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
+export default function Hero({ onJoinCommunity }) {
   return (
     <section id="inicio" className="hero-section">
       <div className="hero-content">
         <h2>Bienvenidos</h2>
         <p>Un lugar para amantes de los Beagles. Descubre información, comparte fotos y conecta con otros dueños.</p>
-        <button onClick={handleScrollToContact} className="btn">
+        <button onClick={onJoinCommunity} className="btn">
           Únete a la comunidad
         </button>
       </div>

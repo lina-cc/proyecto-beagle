@@ -5,6 +5,7 @@ export default function Header({ currentTab, setCurrentTab }) {
     { id: 'inicio', name: 'Inicio', emoji: '🏠' },
     { id: 'sobre', name: 'Sobre Beagles', emoji: '📖' },
     { id: 'cazadores', name: 'Sabuesos', emoji: '🐾' },
+    { id: 'tablon', name: 'Tablón', emoji: '💬' },
     { id: 'recursos', name: 'Recursos', emoji: '💡' },
     { id: 'mascotas', name: 'Mis Mascotas', emoji: '🐕' }
   ];
