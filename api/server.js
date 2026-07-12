@@ -1,9 +1,47 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const app = express();
 
-// Middlewares obligatorios para producción y conexión con React
-app.use(cors());
+// Middleware de seguridad Helmet
+app.use(helmet());
+
+// Limitador de peticiones (Rate Limit) - Máximo 100 peticiones por 15 minutos por IP
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutos
+    max: 100, // Límite de 100 peticiones por IP
+    message: { mensaje: "Demasiadas peticiones desde esta IP, por favor intenta más tarde." },
+    standardHeaders: true, // Retorna información del límite en las cabeceras `RateLimit-*`
+    legacyHeaders: false, // Deshabilita las cabeceras `X-RateLimit-*`
+});
+app.use('/api/', limiter);
+
+// Configuración segura de CORS
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://proyecto-beagle.vercel.app' // Cambia esto si usas un dominio propio
+];
+
+const corsOptions = {
+    origin: function (origin, callback) {
+        // Permitir peticiones sin origen (como llamadas del servidor o curl locales)
+        if (!origin) return callback(null, true);
+        
+        const isAllowed = allowedOrigins.indexOf(origin) !== -1 || 
+                          origin.endsWith('.vercel.app');
+                          
+        if (isAllowed) {
+            callback(null, true);
+        } else {
+            callback(new Error('Bloqueado por CORS: Origen no permitido por seguridad.'));
+        }
+    },
+    optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Puerto dinámico asignado por el hosting (Render) o el 5000 local

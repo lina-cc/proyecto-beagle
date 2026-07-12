@@ -1,5 +1,19 @@
 import React, { useState } from 'react';
 
+function sanitizeHTML(text) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#x27;',
+    '/': '&#x2F;',
+    '`': '&#96;'
+  };
+  const reg = /[&<>"'`\/]/g;
+  return text.replace(reg, (match) => map[match]);
+}
+
 export default function CommunityBoard({ messages, onDeleteMessage, onUpdateMessage }) {
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
@@ -28,7 +42,8 @@ export default function CommunityBoard({ messages, onDeleteMessage, onUpdateMess
       return;
     }
 
-    onUpdateMessage(id, trimmedText);
+    const cleanText = sanitizeHTML(trimmedText);
+    onUpdateMessage(id, cleanText);
     setEditingId(null);
     setEditText('');
     setEditError('');

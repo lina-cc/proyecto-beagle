@@ -95,8 +95,8 @@ export default function ContactForm({ onAddMessage, onShowToast }) {
     const isValid = !nombreError && !emailError && !mensajeError;
 
     if (isValid) {
-      const cleanNombre = formData.nombre.trim();
-      const cleanMensaje = formData.mensaje.trim();
+      const cleanNombre = sanitizeHTML(formData.nombre.trim());
+      const cleanMensaje = sanitizeHTML(formData.mensaje.trim());
 
       const newMessage = {
         id: Date.now(),
