@@ -46,6 +46,16 @@ export default function MascotasPanel({ onShowToast }) {
   const [editingPetId, setEditingPetId] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
+  // Token único del navegador para asociar la propiedad de las mascotas
+  const [ownerToken] = useState(() => {
+    let token = localStorage.getItem('beagle_owner_token');
+    if (!token) {
+      token = `owner-${Math.random().toString(36).substring(2, 11)}-${Date.now()}`;
+      localStorage.setItem('beagle_owner_token', token);
+    }
+    return token;
+  });
+
   // Sincronización bidireccional de mascotas con Supabase
   const handleSyncPets = async () => {
     if (!supabase) {
@@ -54,7 +64,7 @@ export default function MascotasPanel({ onShowToast }) {
     }
 
     setIsSyncing(true);
-    if (onShowToast) onShowToast("Iniciando sincronización con la nube... ☁️", "success");
+    if (onShowToast) onShowToast("Sincronizando expedientes... 🔄", "success");
 
     try {
       // 1. Subir mascotas locales a Supabase (upsert)
@@ -65,7 +75,8 @@ export default function MascotasPanel({ onShowToast }) {
         edad: pet.edad,
         sexo: pet.sexo,
         foto: pet.foto,
-        records: pet.records || []
+        records: pet.records || [],
+        owner_token: pet.owner_token || ownerToken // Asegurar que tenga un token de creador
       }));
 
       if (petsToUpsert.length > 0) {
@@ -90,7 +101,7 @@ export default function MascotasPanel({ onShowToast }) {
         remotePets.forEach(remotePet => {
           const localIndex = mergedMascotas.findIndex(localPet => localPet.id === remotePet.id);
           if (localIndex === -1) {
-            // Si no existe localmente, se añade
+            // Si no existe localmente, se añade con su token correspondiente
             mergedMascotas.push({
               id: remotePet.id,
               nombre: remotePet.nombre,
@@ -98,9 +109,14 @@ export default function MascotasPanel({ onShowToast }) {
               edad: remotePet.edad,
               sexo: remotePet.sexo,
               foto: remotePet.foto,
-              records: remotePet.records || []
+              records: remotePet.records || [],
+              owner_token: remotePet.owner_token
             });
           } else {
+            // Actualizar el token del dueño localmente si no existiera
+            if (!mergedMascotas[localIndex].owner_token) {
+              mergedMascotas[localIndex].owner_token = remotePet.owner_token;
+            }
             // Fusionamos los records sin duplicados por ID de registro
             const localRecords = mergedMascotas[localIndex].records || [];
             const remoteRecords = remotePet.records || [];
@@ -121,11 +137,11 @@ export default function MascotasPanel({ onShowToast }) {
       }
 
       setMascotas(mergedMascotas);
-      if (onShowToast) onShowToast("¡Expedientes sincronizados con Supabase! ☁️🐾", "success");
+      if (onShowToast) onShowToast("¡Expedientes sincronizados! 🐾", "success");
     } catch (err) {
       console.error("Error en sincronización de mascotas:", err);
       if (onShowToast) {
-         onShowToast(`Error de sincronización: ${err.message || 'Verifica si la tabla existe en Supabase.'}`, "error");
+         onShowToast(`Error de sincronización: ${err.message || 'Verifica la conexión.'}`, "error");
       }
     } finally {
       setIsSyncing(false);
@@ -144,6 +160,7 @@ export default function MascotasPanel({ onShowToast }) {
 
   // Mascota seleccionada actualmente para el expediente clínico
   const activePet = mascotas.find(m => m.id === selectedPetId);
+  const isOwner = !activePet || !activePet.owner_token || activePet.owner_token === ownerToken;
 
   // --- VALIDACIONES MASCOTAS ---
   const validatePetForm = () => {
@@ -180,7 +197,13 @@ export default function MascotasPanel({ onShowToast }) {
     }
 
     if (editingPetId) {
-      // Update Mascota
+      // Update Mascota - verify ownerToken
+      const targetPet = mascotas.find(m => m.id === editingPetId);
+      if (targetPet && targetPet.owner_token && targetPet.owner_token !== ownerToken) {
+        if (onShowToast) onShowToast("No tienes permisos para modificar esta mascota.", "error");
+        setEditingPetId(null);
+        return;
+      }
       setMascotas(prev => prev.map(m => m.id === editingPetId ? { ...m, ...petForm, edad: parseInt(petForm.edad) } : m));
       setEditingPetId(null);
     } else {
@@ -192,7 +215,8 @@ export default function MascotasPanel({ onShowToast }) {
         edad: parseInt(petForm.edad),
         sexo: petForm.sexo,
         foto: petForm.foto.trim(),
-        records: []
+        records: [],
+        owner_token: ownerToken
       };
       setMascotas(prev => [...prev, newPet]);
       setIsAddingPet(false);
@@ -202,14 +226,35 @@ export default function MascotasPanel({ onShowToast }) {
   };
 
   const handleEditPetClick = (pet) => {
+    if (pet.owner_token && pet.owner_token !== ownerToken) {
+      if (onShowToast) onShowToast("No eres el propietario de esta mascota.", "error");
+      return;
+    }
     setPetForm({ nombre: pet.nombre, raza: pet.raza, edad: pet.edad.toString(), sexo: pet.sexo, foto: pet.foto });
     setEditingPetId(pet.id);
     setIsAddingPet(true);
     setPetErrors({});
   };
 
-  const handleDeletePet = (id, nombre) => {
+  const handleDeletePet = async (id, nombre) => {
+    const petToDelete = mascotas.find(m => m.id === id);
+    if (petToDelete && petToDelete.owner_token && petToDelete.owner_token !== ownerToken) {
+      if (onShowToast) onShowToast("No tienes permisos para eliminar esta mascota.", "error");
+      return;
+    }
     if (window.confirm(`¿Estás seguro de que quieres eliminar a ${nombre}? Se perderá también su historial clínico.`)) {
+      if (supabase && petToDelete) {
+        try {
+          const { error } = await supabase
+            .from('beagle_mascotas')
+            .delete()
+            .eq('id', id)
+            .eq('owner_token', ownerToken);
+          if (error) throw error;
+        } catch (err) {
+          console.error("Error al borrar mascota en la nube:", err);
+        }
+      }
       setMascotas(prev => prev.filter(m => m.id !== id));
       if (selectedPetId === id) setSelectedPetId(null);
     }
@@ -233,6 +278,12 @@ export default function MascotasPanel({ onShowToast }) {
     const errors = validateRecordForm();
     if (Object.keys(errors).length > 0) {
       setRecordErrors(errors);
+      return;
+    }
+
+    const isOwner = !activePet || !activePet.owner_token || activePet.owner_token === ownerToken;
+    if (!isOwner) {
+      if (onShowToast) onShowToast("No tienes permisos para modificar el expediente clínico.", "error");
       return;
     }
 
@@ -264,6 +315,11 @@ export default function MascotasPanel({ onShowToast }) {
   };
 
   const handleEditRecordClick = (rec) => {
+    const isOwner = !activePet || !activePet.owner_token || activePet.owner_token === ownerToken;
+    if (!isOwner) {
+      if (onShowToast) onShowToast("No tienes permisos para modificar este expediente clínico.", "error");
+      return;
+    }
     setRecordForm({ tipo: rec.tipo, nombre: rec.nombre, fecha: rec.fecha, notas: rec.notas });
     setEditingRecordId(rec.id);
     setIsAddingRecord(true);
@@ -271,6 +327,11 @@ export default function MascotasPanel({ onShowToast }) {
   };
 
   const handleDeleteRecord = (recId) => {
+    const isOwner = !activePet || !activePet.owner_token || activePet.owner_token === ownerToken;
+    if (!isOwner) {
+      if (onShowToast) onShowToast("No tienes permisos para modificar este expediente clínico.", "error");
+      return;
+    }
     if (window.confirm('¿Deseas eliminar este registro médico?')) {
       setMascotas(prev => prev.map(m => {
         if (m.id !== selectedPetId) return m;
@@ -301,14 +362,20 @@ export default function MascotasPanel({ onShowToast }) {
                 <span><strong>Sexo:</strong> {activePet.sexo}</span>
               </p>
             </div>
-            <button className="btn btn-primary add-record-btn-top" onClick={() => {
-              setIsAddingRecord(!isAddingRecord);
-              setEditingRecordId(null);
-              setRecordForm({ tipo: 'Vacuna', nombre: '', fecha: '', notas: '' });
-              setRecordErrors({});
-            }}>
-              {isAddingRecord ? 'Cancelar' : '+ Agregar Registro Médico'}
-            </button>
+            {isOwner ? (
+              <button className="btn btn-primary add-record-btn-top" onClick={() => {
+                setIsAddingRecord(!isAddingRecord);
+                setEditingRecordId(null);
+                setRecordForm({ tipo: 'Vacuna', nombre: '', fecha: '', notas: '' });
+                setRecordErrors({});
+              }}>
+                {isAddingRecord ? 'Cancelar' : '+ Agregar Registro Médico'}
+              </button>
+            ) : (
+              <div className="readonly-badge-container" style={{ backgroundColor: 'rgba(210, 180, 140, 0.15)', borderLeft: '4px solid #d2b48c', padding: '0.8rem 1.2rem', borderRadius: '8px', fontSize: '0.95rem', color: '#665b54', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>👁️ Modo Lectura</span>
+              </div>
+            )}
           </div>
 
           {/* Formulario de Historial Clínico (Create / Update) */}
@@ -409,14 +476,16 @@ export default function MascotasPanel({ onShowToast }) {
                       {rec.notas && <p className="timeline-notes">"{rec.notas}"</p>}
                       
                       {/* Acciones clínicas (Update / Delete) */}
-                      <div className="timeline-actions">
-                        <button className="timeline-action-btn edit" onClick={() => handleEditRecordClick(rec)}>
-                          ✏️ Editar
-                        </button>
-                        <button className="timeline-action-btn delete" onClick={() => handleDeleteRecord(rec.id)}>
-                          🗑️ Borrar
-                        </button>
-                      </div>
+                      {isOwner && (
+                        <div className="timeline-actions">
+                          <button className="timeline-action-btn edit" onClick={() => handleEditRecordClick(rec)}>
+                            ✏️ Editar
+                          </button>
+                          <button className="timeline-action-btn delete" onClick={() => handleDeleteRecord(rec.id)}>
+                            🗑️ Borrar
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -448,7 +517,7 @@ export default function MascotasPanel({ onShowToast }) {
                   onClick={handleSyncPets}
                   disabled={isSyncing}
                 >
-                  {isSyncing ? '🔄 Sincronizando...' : '☁️ Sincronizar con Supabase'}
+                  {isSyncing ? '🔄 Sincronizando...' : '🔄 Sincronizar'}
                 </button>
               )}
             </div>
@@ -567,12 +636,16 @@ export default function MascotasPanel({ onShowToast }) {
                       <button className="btn btn-secondary btn-pet-action clinical" onClick={() => setSelectedPetId(pet.id)}>
                         📋 Expediente
                       </button>
-                      <button className="btn btn-pet-action edit" onClick={() => handleEditPetClick(pet)} title="Editar datos">
-                        ✏️
-                      </button>
-                      <button className="btn btn-pet-action delete" onClick={() => handleDeletePet(pet.id, pet.nombre)} title="Eliminar perfil">
-                        🗑️
-                      </button>
+                      {(!pet.owner_token || pet.owner_token === ownerToken) && (
+                        <>
+                          <button className="btn btn-pet-action edit" onClick={() => handleEditPetClick(pet)} title="Editar datos">
+                            ✏️
+                          </button>
+                          <button className="btn btn-pet-action delete" onClick={() => handleDeletePet(pet.id, pet.nombre)} title="Eliminar perfil">
+                            🗑️
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

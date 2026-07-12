@@ -102,19 +102,19 @@ export default function App() {
           }]);
         if (error) throw error;
         setMessages((prev) => [newMessage, ...prev]);
-        showToast("¡Mensaje publicado en la nube! ☁️", "success");
+        showToast("¡Mensaje publicado! 💬", "success");
       } catch (err) {
         console.error('Error insertando en Supabase, guardando local:', err);
         const updated = [newMessage, ...messages];
         setMessages(updated);
         localStorage.setItem('beagle_messages', JSON.stringify(updated));
-        showToast("Error de nube. Mensaje guardado localmente.", "warning");
+        showToast("Mensaje guardado localmente.", "warning");
       }
     } else {
       const updated = [newMessage, ...messages];
       setMessages(updated);
       localStorage.setItem('beagle_messages', JSON.stringify(updated));
-      showToast("Mensaje publicado localmente 🐾", "success");
+      showToast("¡Mensaje publicado! 🐾", "success");
     }
   };
 
@@ -127,7 +127,7 @@ export default function App() {
           .eq('id', id);
         if (error) throw error;
         setMessages((prev) => prev.map((m) => m.id === id ? { ...m, text: newText } : m));
-        showToast("Mensaje editado en la nube ☁️", "success");
+        showToast("¡Mensaje editado! ✏️", "success");
       } catch (err) {
         console.error('Error editando en Supabase:', err);
         const updated = messages.map((m) => m.id === id ? { ...m, text: newText } : m);
@@ -139,7 +139,7 @@ export default function App() {
       const updated = messages.map((m) => m.id === id ? { ...m, text: newText } : m);
       setMessages(updated);
       localStorage.setItem('beagle_messages', JSON.stringify(updated));
-      showToast("Mensaje editado localmente 🐾", "success");
+      showToast("¡Mensaje editado! ✏️", "success");
     }
   };
 
@@ -152,7 +152,7 @@ export default function App() {
           .eq('id', id);
         if (error) throw error;
         setMessages((prev) => prev.filter((m) => m.id !== id));
-        showToast("Mensaje eliminado de la nube ☁️", "success");
+        showToast("¡Mensaje eliminado! 🗑️", "success");
       } catch (err) {
         console.error('Error eliminando de Supabase:', err);
         const updated = messages.filter((m) => m.id !== id);
@@ -164,7 +164,7 @@ export default function App() {
       const updated = messages.filter((m) => m.id !== id);
       setMessages(updated);
       localStorage.setItem('beagle_messages', JSON.stringify(updated));
-      showToast("Mensaje eliminado localmente 🐾", "success");
+      showToast("¡Mensaje eliminado! 🗑️", "success");
     }
   };
 
@@ -258,11 +258,11 @@ export default function App() {
                 <div className="status-badge-wrapper" style={{ marginTop: '1rem', display: 'inline-block' }}>
                   {supabase ? (
                     <span className="status-badge live">
-                      <span className="pulse-dot"></span> Conectado a la Nube (Supabase)
+                      <span className="pulse-dot"></span> En línea ☁️
                     </span>
                   ) : (
                     <span className="status-badge local">
-                      <span className="static-dot" style={{ backgroundColor: '#7f8c8d' }}></span> Guardado Local (Offline)
+                      <span className="static-dot" style={{ backgroundColor: '#7f8c8d' }}></span> Modo Local 📱
                     </span>
                   )}
                 </div>
