@@ -2088,23 +2088,20 @@ footer {
    TABLÓN DE LA COMUNIDAD Y SKELETON LAYOUTS
    ========================================================================== */
 .tablon-content-wrapper {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 2.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 3.5rem;
 }
 
-@media (min-width: 992px) {
-    .tablon-content-wrapper {
-        grid-template-columns: 380px 1fr;
-        align-items: start;
-        gap: 3rem;
-    }
-    .tablon-content-wrapper .contact-container {
-        max-width: 100%;
-        width: 100%;
-        margin: 0;
-        padding: 2rem;
-    }
+.tablon-content-wrapper .contact-container {
+    max-width: 760px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+.tablon-content-wrapper .community-board {
+    width: 100%;
+    margin: 0 auto;
 }
 
 .sync-pets-btn {

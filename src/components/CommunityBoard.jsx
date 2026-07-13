@@ -51,11 +51,6 @@ export default function CommunityBoard({ messages, onDeleteMessage, onUpdateMess
 
   return (
     <div className="community-board">
-      <h3>Tablón de la Comunidad 💬</h3>
-      <p className="board-subtitle" style={{ textAlign: 'center', marginBottom: '2rem', color: '#665b54' }}>
-        Comentarios recientes de otros dueños de Beagles:
-      </p>
-      
       <div id="messages-container" className="messages-container">
         {messages.length === 0 ? (
           <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '2rem', color: '#888', fontStyle: 'italic' }}>
